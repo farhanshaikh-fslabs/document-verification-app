@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Submissions — GCC/CPC POC{% endblock %}
+{% block content %}
+<section class="section review-shell">
+  <div class="section-head">
+    <h1>Processed submissions</h1>
+    <a class="btn-link" href="/review/new">New upload</a>
+  </div>
+  <form method="get" action="/review" class="search">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search title..." />
+    <button type="submit">Search</button>
+  </form>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Status</th>
+          <th>Rating</th>
+          <th>Manual review</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+        <tr>
+          <td>{{ it.title or "(no title)" }}</td>
+          <td>{{ it.status.value }}</td>
+          <td>
+            {% if it.traffic_light %}
+            <span class="pill pill-{{ it.traffic_light.value }}">{{ it.traffic_light.value }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>{% if it.manual_review_required %}Yes{% else %}No{% endif %}</td>
+          <td><a href="/review/{{ it.id }}">Open</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">No submissions yet. <a href="/review/new">Upload documents</a>.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

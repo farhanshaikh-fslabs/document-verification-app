@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}New submission — GCC/CPC POC{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>New compliance submission</h1>
+  <p class="muted">Upload certificate and test report PDFs. Processing starts immediately after upload.</p>
+  <form method="post" action="/review/new" enctype="multipart/form-data">
+    <label>Title (optional)<input type="text" name="title" /></label>
+    <label>Certificate type
+      <select name="certificate_kind">
+        <option value="cpc">CPC (strict third-party lab match)</option>
+        <option value="gcc">GCC (lab optional if present)</option>
+      </select>
+    </label>
+    <label>GCC/CPC PDF<input type="file" name="certificate" accept=".pdf" required /></label>
+    <label>Test report PDF<input type="file" name="test_report" accept=".pdf" required /></label>
+    <button type="submit">Upload &amp; process</button>
+  </form>
+</div>
+{% endblock %}

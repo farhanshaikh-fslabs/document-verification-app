@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}GCC/CPC POC{% endblock %}</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="header">
+    <a href="/review" class="brand">GCC/CPC Compliance POC</a>
+    {% if user %}
+    <nav class="topnav">
+      <a href="/review">Submissions</a>
+      <a href="/review/new">New upload</a>
+      <a href="/logout">Logout</a>
+      <span class="user">{{ user.email }}</span>
+    </nav>
+    {% endif %}
+  </header>
+  <main class="main">{% block content %}{% endblock %}</main>
+</body>
+</html>

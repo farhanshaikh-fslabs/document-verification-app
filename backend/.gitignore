@@ -1,0 +1,7 @@
+poc_compliance.db
+*.db-journal
+data/uploads/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env

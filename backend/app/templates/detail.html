@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Submission — GCC/CPC POC{% endblock %}
+{% block content %}
+<div class="detail-layout">
+  <aside class="sidebar section">
+    <h1>{{ detail.title or "Submission" }}</h1>
+    <p class="muted small">ID: {{ detail.id }}</p>
+    <p class="muted">Kind: <strong>{{ detail.certificate_kind.value }}</strong> · Status: <strong>{{ detail.status.value }}</strong></p>
+    {% if started %}
+    <p class="muted small">Processing started for this upload. This page auto-refreshes until completion.</p>
+    {% endif %}
+    {% if detail.failure_message %}
+    <p class="error">{{ detail.failure_message }}</p>
+    {% endif %}
+    {% if detail.traffic_light %}
+    <p class="rating-line">Rating <span class="pill pill-{{ detail.traffic_light.value }}">{{ detail.traffic_light.value }}</span></p>
+    {% if detail.traffic_light_reasons %}
+    <ul class="compact-list muted small">
+      {% for reason in detail.traffic_light_reasons %}
+      <li>{{ reason }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% endif %}
+
+    <div class="inline-actions">
+      <form method="post" action="/review/{{ detail.id }}/reprocess">
+        <button type="submit">Re-run extraction &amp; validation</button>
+      </form>
+    </div>
+
+    <h3>Original documents</h3>
+    <ul class="compact-list">
+      {% for d in detail.documents %}
+      <li><a href="/api/documents/{{ d.id }}/file" target="_blank">{{ d.doc_type }} — {{ d.original_filename }}</a></li>
+      {% endfor %}
+    </ul>
+  </aside>
+
+  <div class="content-stack">
+    <section class="section">
+      <h2>Manual rating override</h2>
+      <form method="post" action="/review/{{ detail.id }}/rating" class="row">
+        <select name="traffic_light">
+          <option value="green">green</option>
+          <option value="yellow">yellow</option>
+          <option value="red">red</option>
+        </select>
+        <input type="text" name="reason" placeholder="Reason (required)" required />
+        <button type="submit">Save rating</button>
+      </form>
+    </section>
+
+    <section class="section">
+      <h2>Attribute validations</h2>
+      <div class="table-wrap compact-height">
+        <table class="table">
+          <thead><tr><th>Key</th><th>Passed</th><th>Reason</th></tr></thead>
+          <tbody>
+            {% for v in detail.attribute_validations %}
+            <tr>
+              <td><code>{{ v.attribute_key }}</code></td>
+              <td>{% if v.passed %}Yes{% else %}<strong>No</strong>{% endif %}</td>
+              <td>{{ v.reason or "—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Citation validations</h2>
+      <div class="table-wrap compact-height">
+        <table class="table">
+          <thead><tr><th>Citation</th><th>Cert</th><th>Report</th><th>Pass/Fail</th><th>Flagged</th></tr></thead>
+          <tbody>
+            {% for c in detail.citation_validations %}
+            <tr>
+              <td><code>{{ c.citation_normalized }}</code></td>
+              <td>{{ "Y" if c.on_certificate else "N" }}</td>
+              <td>{{ "Y" if c.on_test_report else "N" }}</td>
+              <td>{{ c.test_pass_fail or "—" }}</td>
+              <td>{% if c.flagged_immediate_review %}<strong>Yes</strong>{% else %}No{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Extractions (expand to edit JSON value)</h2>
+      {% for e in detail.extractions %}
+      <details class="accordion extraction-block" {% if loop.first %}open{% endif %}>
+        <summary>
+          <code>{{ e.attribute_key }}</code>
+          <span class="muted small">confidence {{ "%.2f"|format(e.confidence) }}{% if e.user_edited %} · edited{% endif %}</span>
+        </summary>
+        {% if e.justification %}<p class="muted small">{{ e.justification }}</p>{% endif %}
+        {% if e.raw_text_snippet %}<pre class="snippet">{{ e.raw_text_snippet }}</pre>{% endif %}
+        <form method="post" action="/review/{{ detail.id }}/extractions/{{ e.id }}">
+          <textarea name="value_json" rows="6" class="wide">{% if e.value_json is none %}{% else %}{{ e.value_json | tojson(indent=2) }}{% endif %}</textarea>
+          <button type="submit">Save extraction</button>
+        </form>
+      </details>
+      {% endfor %}
+    </section>
+  </div>
+</div>
+{% if detail.status.value in ["pending", "extracting", "validating"] %}
+<script>
+  setTimeout(function () { window.location.reload(); }, 4000);
+</script>
+{% endif %}
+{% endblock %}

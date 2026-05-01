@@ -1,0 +1,17 @@
+{
+  "labs": [
+    {
+      "normalized_name": "example testing laboratory",
+      "cpsc_accreditation_id": "EXAMPLE-1234",
+      "citations_supported": ["16 CFR 1610", "16 CFR 1303", "16 CFR 1501"]
+    }
+  ],
+  "cpsc_citation_index": [
+    "16 CFR 1610",
+    "16 CFR 1303",
+    "16 CFR 1501",
+    "16 CFR 1307",
+    "16 CFR 1615",
+    "16 CFR 1616"
+  ]
+}
