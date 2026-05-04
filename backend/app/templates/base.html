@@ -16,9 +16,14 @@
     <nav class="topnav">
       <a href="/review" {% if request.url.path == "/review" %}class="active"{% endif %}>Submissions</a>
       <a href="/review/new" {% if request.url.path == "/review/new" %}class="active"{% endif %}>New Upload</a>
+      <a href="/direct/new"
+         {% if request.url.path == "/direct/new" %}class="active"{% endif %}
+         style="{% if request.url.path != '/direct/new' %}color:#a5b4fc;{% endif %}">
+        Direct AI Review
+      </a>
       <span class="meta-sep">|</span>
       <div class="user-chip">
-        <span>&#9679;</span>
+        <span class="user-chip-dot" aria-hidden="true"></span>
         {{ user.email }}
       </div>
       <a href="/logout" class="btn btn-ghost btn-sm" style="margin-left:0.25rem">Logout</a>

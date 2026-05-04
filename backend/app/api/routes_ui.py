@@ -26,6 +26,7 @@ from app.db.models import (
     User,
 )
 from app.api.routes_submissions import _document_set_to_detail, run_pipeline_job
+from app.db.database import AsyncSessionLocal
 from app.schemas.submission import SubmissionDetail
 from app.services.audit import log_audit
 from app.services.storage import save_upload
@@ -457,3 +458,134 @@ async def review_reprocess(
     await db.commit()
     asyncio.create_task(run_pipeline_job(submission_id))
     return RedirectResponse(f"/review/{submission_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Direct PDF Review  (/direct)
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def _run_direct_pipeline_job(document_set_id: str) -> None:
+    """Background task: run the direct-PDF pipeline and persist results."""
+    from app.services.pipeline_direct import process_document_set_direct
+
+    async with AsyncSessionLocal() as session:
+        try:
+            await process_document_set_direct(session, document_set_id)
+            await session.commit()
+        except Exception as exc:
+            await session.rollback()
+            async with AsyncSessionLocal() as s2:
+                r = await s2.execute(select(DocumentSet).where(DocumentSet.id == document_set_id))
+                ds = r.scalar_one_or_none()
+                if ds:
+                    ds.status = ProcessingStatus.failed
+                    ds.failure_message = str(exc)[:2000]
+                    await s2.commit()
+
+
+@router.get("/direct", response_class=HTMLResponse, response_model=None)
+async def direct_review_list(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[User | None, Depends(get_current_user_optional)],
+    q: str | None = None,
+) -> HTMLResponse | RedirectResponse:
+    """List submissions processed with the direct-PDF AI review mode."""
+    u = _require(user)
+    if isinstance(u, RedirectResponse):
+        return u
+    stmt = (
+        select(DocumentSet)
+        .options(
+            selectinload(DocumentSet.documents),
+            selectinload(DocumentSet.extractions),
+            selectinload(DocumentSet.attribute_validations),
+            selectinload(DocumentSet.citation_validations),
+        )
+        .order_by(DocumentSet.created_at.desc())
+    )
+    if q:
+        stmt = stmt.where(DocumentSet.title.ilike(f"%{q}%"))
+    rows = (await db.execute(stmt)).scalars().all()
+    items = [_document_set_to_detail(ds) for ds in rows]
+    return templates.TemplateResponse(
+        request,
+        "list.html",
+        {"request": request, "user": u, "items": items, "q": q or "", "mode": "direct"},
+    )
+
+
+@router.get("/direct/new", response_class=HTMLResponse, response_model=None)
+async def direct_review_new(
+    request: Request,
+    user: Annotated[User | None, Depends(get_current_user_optional)],
+) -> HTMLResponse | RedirectResponse:
+    u = _require(user)
+    if isinstance(u, RedirectResponse):
+        return u
+    from app.config import get_settings as _gs
+    return templates.TemplateResponse(
+        request,
+        "upload_direct.html",
+        {"request": request, "user": u, "bedrock_model": _gs().bedrock_model_id},
+    )
+
+
+@router.post("/direct/new", response_class=HTMLResponse, response_model=None)
+async def direct_review_new_post(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[User | None, Depends(get_current_user_optional)],
+    certificate: UploadFile = File(...),
+    test_report: UploadFile = File(...),
+    title: str | None = Form(None),
+    certificate_kind: str = Form("cpc"),
+) -> RedirectResponse | HTMLResponse:
+    u = _require(user)
+    if isinstance(u, RedirectResponse):
+        return u
+
+    kind = CertificateKind.gcc if certificate_kind.lower() == "gcc" else CertificateKind.cpc
+    cert_bytes = await certificate.read()
+    test_bytes = await test_report.read()
+    cert_path = save_upload(certificate.filename or "certificate.pdf", cert_bytes)
+    test_path = save_upload(test_report.filename or "test_report.pdf", test_bytes)
+
+    ds = DocumentSet(
+        title=title,
+        certificate_kind=kind,
+        status=ProcessingStatus.extracting,
+    )
+    db.add(ds)
+    await db.flush()
+
+    db.add(
+        Document(
+            document_set_id=ds.id,
+            doc_type=DocumentType.certificate,
+            original_filename=certificate.filename or "certificate.pdf",
+            storage_path=str(cert_path),
+            mime_type=certificate.content_type,
+        )
+    )
+    db.add(
+        Document(
+            document_set_id=ds.id,
+            doc_type=DocumentType.test_report,
+            original_filename=test_report.filename or "test_report.pdf",
+            storage_path=str(test_path),
+            mime_type=test_report.content_type,
+        )
+    )
+    await log_audit(
+        db,
+        user_id=u.id,
+        document_set_id=ds.id,
+        action="direct_review_submission_created",
+        entity_type="document_set",
+        entity_id=ds.id,
+        payload_after={"title": title, "certificate_kind": kind.value, "mode": "direct_pdf"},
+    )
+    await db.commit()
+    asyncio.create_task(_run_direct_pipeline_job(ds.id))
+    return RedirectResponse(f"/review/{ds.id}?started=1", status_code=status.HTTP_303_SEE_OTHER)

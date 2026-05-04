@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Direct AI Review — GCC/CPC Compliance Review{% endblock %}
+{% block content %}
+<div style="max-width:700px;margin:0 auto;">
+
+  {# ── hero banner ───────────────────────────────────────────── #}
+  <div style="background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%);border:1px solid #312e81;border-radius:14px;padding:1.5rem 1.75rem;margin-bottom:1.25rem;">
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;">
+      <div style="width:38px;height:38px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;letter-spacing:0.02em;color:#fff;flex-shrink:0;">AI</div>
+      <div>
+        <h1 style="font-size:1.2rem;color:#e0e7ff;">Direct AI Review <span style="font-size:0.75rem;background:#312e81;color:#a5b4fc;padding:0.15rem 0.55rem;border-radius:999px;font-weight:600;vertical-align:middle;margin-left:0.35rem;">NO OCR</span></h1>
+        <p style="color:#a5b4fc;font-size:0.85rem;margin-top:0.1rem;">PDFs sent directly to Claude — no text extraction, no heuristics</p>
+      </div>
+    </div>
+    <p style="color:#c7d2fe;font-size:0.88rem;line-height:1.6;">
+      The AI model reads the raw PDF pages as a document — it sees tables, layouts, and
+      handwritten annotations that OCR and text parsers miss.  Three separate model calls are
+      made: one to extract the certificate, one to extract the test report, and one to compare
+      both and validate all 9 CPSC compliance attributes.
+    </p>
+  </div>
+
+  {# ── how it works ──────────────────────────────────────────── #}
+  <div class="section" style="padding:1rem 1.25rem;margin-bottom:1rem;">
+    <h3 style="margin-bottom:0.75rem;">How Direct AI Review Works</h3>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:0.85rem;text-align:center;">
+        <div style="font-size:1rem;font-weight:700;color:var(--accent);margin-bottom:0.35rem;">1+2</div>
+        <div style="font-weight:600;font-size:0.88rem;margin-bottom:0.25rem;">Call 1 &amp; 2</div>
+        <div class="muted small">Certificate + Test Report sent individually for structured field extraction</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:0.85rem;text-align:center;">
+        <div style="font-size:1rem;font-weight:700;color:var(--accent);margin-bottom:0.35rem;">3</div>
+        <div style="font-weight:600;font-size:0.88rem;margin-bottom:0.25rem;">Call 3</div>
+        <div class="muted small">Both PDFs compared simultaneously — attribute matching + citation PASS/FAIL</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:0.85rem;text-align:center;">
+        <div style="font-size:1rem;font-weight:700;color:var(--accent);margin-bottom:0.35rem;">Out</div>
+        <div style="font-weight:600;font-size:0.88rem;margin-bottom:0.25rem;">Results</div>
+        <div class="muted small">Traffic-light rating + full compliance report with per-attribute justification</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── upload form ───────────────────────────────────────────── #}
+  <div class="section">
+    <div class="section-header">
+      <h2>Upload Documents for Direct Review</h2>
+    </div>
+
+    <div class="info-box warn" style="margin-bottom:1rem;">
+      <strong class="msg-prefix">!</strong> <strong>Requires Bedrock access.</strong>
+      Ensure <code>AWS_REGION</code> and valid Bedrock credentials are configured and that
+      the model <code>{{ bedrock_model }}</code> supports PDF document inputs.
+      Processing typically takes 30–90 seconds for three model calls.
+    </div>
+
+    <form method="post" action="/direct/new" enctype="multipart/form-data" id="direct-form">
+      <label>
+        <span class="label-text">Submission title <span class="muted">(optional)</span></span>
+        <input type="text" name="title" placeholder="e.g. SliderBox Direct AI Review — May 2025" />
+      </label>
+
+      <label style="margin-top:1rem;">
+        <span class="label-text">Certificate type</span>
+        <select name="certificate_kind">
+          <option value="cpc">CPC — Children's Product Certificate (strict third-party lab)</option>
+          <option value="gcc">GCC — General Certificate of Conformity (lab optional)</option>
+        </select>
+      </label>
+
+      <label style="margin-top:1rem;">
+        <span class="label-text">GCC/CPC Certificate PDF</span>
+        <div class="upload-area" id="cert-area">
+          <input type="file" name="certificate" id="cert-input" accept=".pdf" required />
+          <div class="upload-icon" aria-hidden="true">Cert</div>
+          <div>Click to select certificate PDF</div>
+          <div class="upload-hint">PDF format only · Raw bytes sent directly to AI model</div>
+          <div class="upload-filename" id="cert-name" style="display:none"></div>
+        </div>
+      </label>
+
+      <label style="margin-top:1rem;">
+        <span class="label-text">Test Report PDF</span>
+        <div class="upload-area" id="report-area">
+          <input type="file" name="test_report" id="report-input" accept=".pdf" required />
+          <div class="upload-icon" aria-hidden="true">Report</div>
+          <div>Click to select test report PDF</div>
+          <div class="upload-hint">PDF format only · Raw bytes sent directly to AI model</div>
+          <div class="upload-filename" id="report-name" style="display:none"></div>
+        </div>
+      </label>
+
+      <div style="display:flex;gap:0.75rem;margin-top:1.25rem;align-items:center;">
+        <button type="submit" class="btn" id="submit-btn"
+          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:0.95rem;">
+          Start Direct AI Review
+        </button>
+        <a href="/review/new" class="btn btn-ghost">Use Standard Upload</a>
+        <a href="/review" class="btn btn-ghost">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  {# ── prompts reference ─────────────────────────────────────── #}
+  <div class="section" style="margin-top:0;">
+    <details>
+      <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:0.25rem 0;font-size:0.9rem;color:var(--text-dim);">
+        <span>View extraction &amp; comparison prompts</span>
+        <span class="caret" aria-hidden="true">&#9660;</span>
+      </summary>
+      <div style="margin-top:1rem;">
+        <h3 style="margin-bottom:0.5rem;">Prompt 1 &amp; 2 — Single-Document Extraction</h3>
+        <p class="muted small" style="margin-bottom:0.6rem;">
+          Sent once for the certificate and once for the test report. Instructs the model to
+          extract all 9 CPSC compliance attributes, providing a confidence score (0–1),
+          justification, page hint, and verbatim snippet for each field.
+        </p>
+        <div class="snippet" style="max-height:200px;">
+You are a CPSC compliance extraction specialist. The attached PDF is a [Certificate / Test Report].
+
+Extract exactly 9 structured compliance attributes and return them as a single valid JSON object.
+
+Attributes extracted:
+  1. product_identification   — product_name, product_description, identification_numbers
+  2. citations                — array of exact regulation strings (e.g. "16 CFR 1610")
+  3. manufacturer_importer    — company_name, address, phone
+  4. record_keeper_contact    — name, mailing_address, email, telephone
+  5. place_of_manufacture     — country, city_or_factory
+  6. date_of_manufacture      — month_year_or_range, notes  [optional field]
+  7. place_of_testing         — laboratory_name, full_address
+  8. date_of_testing          — date_or_range
+  9. third_party_lab          — laboratory_name, full_address, cpsc_accreditation_number
+
+Each field returns: { value, confidence (0–1), justification, page_hint, snippet }
+Confidence rules: >0.80 clearly stated · 0.50–0.79 inferred/partial · &lt;0.50 missing/guessed
+        </div>
+
+        <h3 style="margin-top:1rem;margin-bottom:0.5rem;">Prompt 3 — Cross-Document Comparison &amp; Validation</h3>
+        <p class="muted small" style="margin-bottom:0.6rem;">
+          Both PDFs are sent together. The model compares all 9 attribute pairs against CPSC
+          validation rules and scans each citation for PASS/FAIL results in the test report.
+        </p>
+        <div class="snippet" style="max-height:200px;">
+You are a CPSC compliance validation agent. Two PDFs are attached:
+  • Document 1: GCC/CPC Certificate of Conformity
+  • Document 2: Test Report
+
+Validation rules applied to each attribute:
+  1. Product Identification   — ALL sub-fields must match exactly and be present on BOTH docs
+  2. Citations                — Every citation must appear on BOTH; FAIL/MIXED results → flagged
+  3. Manufacturer/Importer    — Must be present on both (not required to match)
+  4. Record Keeper            — All 4 fields required on certificate; if on test report → exact match
+  5. Place of Manufacture     — country + city_or_factory must match and be present on both
+  6. Date of Manufacture      — Optional; if provided on either doc it must match the other
+  7. Place of Testing         — lab name + address must match and be present on both
+  8. Date of Testing          — Must match and be present on both
+  9. Third-Party Lab          — CPC: all fields exact match required; GCC: match if present
+
+Citation scan: for each matched citation, find PASS/FAIL results in test report.
+  FAIL or MIXED → conformant=false, flagged_immediate_review=true
+
+Returns: { attribute_validations: [...], citation_validations: [...] }
+        </div>
+      </div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+function setFileName(inputId, nameId, areaId) {
+  const input = document.getElementById(inputId);
+  const name  = document.getElementById(nameId);
+  const area  = document.getElementById(areaId);
+  input.addEventListener('change', function() {
+    if (this.files[0]) {
+      name.textContent = this.files[0].name;
+      name.style.display = 'block';
+      area.style.borderColor = '#6366f1';
+    }
+  });
+}
+setFileName('cert-input',   'cert-name',   'cert-area');
+setFileName('report-input', 'report-name', 'report-area');
+
+document.getElementById('direct-form').addEventListener('submit', function() {
+  const btn = document.getElementById('submit-btn');
+  btn.innerHTML = '<div class="spinner" style="border-top-color:#fff;margin-right:0.4rem;"></div> Uploading…';
+  btn.disabled = true;
+});
+</script>
+{% endblock %}

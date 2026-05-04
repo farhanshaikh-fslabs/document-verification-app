@@ -31,9 +31,9 @@
 
       <label style="margin-top:1rem;">
         <span class="label-text">GCC/CPC Certificate PDF</span>
-        <div class="upload-area" id="cert-area" onclick="document.getElementById('cert-input').click()">
+        <div class="upload-area" id="cert-area">
           <input type="file" name="certificate" id="cert-input" accept=".pdf" required />
-          <div class="upload-icon">&#128196;</div>
+          <div class="upload-icon" aria-hidden="true">Cert</div>
           <div>Click to select certificate PDF</div>
           <div class="upload-hint">PDF format only · Max 50 MB</div>
           <div class="upload-filename" id="cert-name" style="display:none"></div>
@@ -42,9 +42,9 @@
 
       <label style="margin-top:1rem;">
         <span class="label-text">Test Report PDF</span>
-        <div class="upload-area" id="report-area" onclick="document.getElementById('report-input').click()">
+        <div class="upload-area" id="report-area">
           <input type="file" name="test_report" id="report-input" accept=".pdf" required />
-          <div class="upload-icon">&#128203;</div>
+          <div class="upload-icon" aria-hidden="true">Report</div>
           <div>Click to select test report PDF</div>
           <div class="upload-hint">PDF format only · Max 50 MB</div>
           <div class="upload-filename" id="report-name" style="display:none"></div>

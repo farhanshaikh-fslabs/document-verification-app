@@ -40,7 +40,7 @@
               {{ it.title or "(untitled)" }}
             </a>
             {% if it.failure_message %}
-            <div class="small error" style="margin-top:0.2rem">&#9888; {{ it.failure_message[:80] }}</div>
+            <div class="small error" style="margin-top:0.2rem"><strong>!</strong> {{ it.failure_message[:80] }}</div>
             {% endif %}
           </td>
           <td>
@@ -69,7 +69,7 @@
           </td>
           <td>
             {% if it.manual_review_required %}
-              <span style="color:var(--yellow);font-weight:600;font-size:0.85rem;">&#9888; Required</span>
+              <span style="color:var(--yellow);font-weight:600;font-size:0.85rem;">! Required</span>
             {% else %}
               <span class="muted small">No</span>
             {% endif %}
@@ -94,7 +94,7 @@
   </div>
   {% else %}
   <div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)">
-    <div style="font-size:2.5rem;margin-bottom:0.75rem">&#128196;</div>
+    <div style="font-size:1.25rem;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem">No items</div>
     <p style="font-size:1rem;font-weight:500;color:var(--text);">No submissions yet</p>
     <p class="small" style="margin:0.35rem 0 1.25rem">Upload a GCC/CPC certificate and test report to get started.</p>
     <a href="/review/new" class="btn btn-primary">Upload your first submission</a>

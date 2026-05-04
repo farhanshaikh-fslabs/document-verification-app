@@ -14,7 +14,7 @@
 </div>
 {% endmacro %}
 
-{% macro render_value(val) %}
+{% macro render_value(val, nowrap_list=false) %}
 {% if val is none or val == "" %}
   <span class="kv-val missing">Not extracted</span>
 {% elif val is mapping %}
@@ -30,9 +30,9 @@
   {% if val | list | length == 0 %}
     <span class="kv-val missing">None found</span>
   {% else %}
-    <div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
+    <div class="kv-pills{% if nowrap_list %} kv-pills--nowrap{% endif %}">
     {% for item in val %}
-      <code class="pill pill-gray" style="font-size:0.77rem;text-transform:none;letter-spacing:0;">{{ item }}</code>
+      <code class="pill pill-gray pill-citation">{{ item }}</code>
     {% endfor %}
     </div>
   {% endif %}
@@ -51,10 +51,10 @@
     {% if detail.traffic_light %}
     {% set tl = detail.traffic_light.value %}
     <div class="rating-banner {{ tl }}">
-      <div class="rating-icon">
-        {% if tl == "green" %}&#9989;
-        {% elif tl == "yellow" %}&#9888;
-        {% else %}&#10060;{% endif %}
+      <div class="rating-icon" aria-hidden="true">
+        {% if tl == "green" %}&#10003;
+        {% elif tl == "yellow" %}<span class="rating-letter">R</span>
+        {% else %}&#10007;{% endif %}
       </div>
       <div>
         <div class="rating-label">{{ tl | upper }} — {% if tl == "green" %}Compliant{% elif tl == "yellow" %}Review Required{% else %}Non-Compliant{% endif %}</div>
@@ -89,10 +89,10 @@
         {% endif %}
       </div>
       {% if detail.failure_message %}
-      <div class="info-box err">&#9888; {{ detail.failure_message }}</div>
+      <div class="info-box err"><strong class="msg-prefix">!</strong> {{ detail.failure_message }}</div>
       {% endif %}
       {% if detail.manual_review_required and detail.status.value == "completed" %}
-      <div class="info-box warn">&#9888; Manual review required for this submission.</div>
+      <div class="info-box warn"><strong class="msg-prefix">!</strong> Manual review required for this submission.</div>
       {% endif %}
       <div class="muted small" style="margin-top:0.4rem">ID: {{ detail.id }}</div>
     </div>
@@ -104,7 +104,7 @@
         {% for d in detail.documents %}
         <li>
           <a href="/api/documents/{{ d.id }}/file" target="_blank">
-            <span class="doc-icon">&#128196;</span>
+            <span class="doc-icon" aria-hidden="true">PDF</span>
             <span>
               <div style="color:var(--text);font-weight:500;font-size:0.83rem;">
                 {{ "Certificate" if d.doc_type == "certificate" else "Test Report" }}
@@ -123,19 +123,19 @@
 
       <form method="post" action="/review/{{ detail.id }}/reprocess" style="margin-bottom:0.75rem;">
         <button type="submit" class="btn btn-ghost btn-sm" style="width:100%;">
-          &#8635; Re-run Extraction &amp; Validation
+          Re-run Extraction &amp; Validation
         </button>
       </form>
 
       <details>
         <summary style="cursor:pointer;font-size:0.85rem;color:var(--text-dim);list-style:none;display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;">
-          <span>Override Rating</span><span>&#9660;</span>
+          <span>Override Rating</span><span class="caret" aria-hidden="true">&#9660;</span>
         </summary>
         <form method="post" action="/review/{{ detail.id }}/rating" style="margin-top:0.6rem;">
           <select name="traffic_light" style="margin-bottom:0.4rem;">
-            <option value="green">&#9989; Green — Compliant</option>
-            <option value="yellow">&#9888; Yellow — Review Required</option>
-            <option value="red">&#10060; Red — Non-Compliant</option>
+            <option value="green">&#10003; Green — Compliant</option>
+            <option value="yellow">Yellow — Review Required</option>
+            <option value="red">&#10007; Red — Non-Compliant</option>
           </select>
           <input type="text" name="reason" placeholder="Reason for override (required)" required />
           <button type="submit" class="btn btn-primary btn-sm" style="margin-top:0.5rem;width:100%;">Save Override</button>
@@ -184,13 +184,13 @@
     {% endif %}
 
     {% if started and detail.status.value in ["pending", "extracting", "validating"] %}
-    <div class="info-box info">&#128640; Upload complete. Extraction and validation are running.</div>
+    <div class="info-box info">Upload complete. Extraction and validation are running.</div>
     {% endif %}
 
     {# ── TABS ── #}
     <div class="tabs" id="tab-nav">
       <button class="tab-btn active" data-tab="attributes">
-        &#128203; Attribute Review
+        Attribute Review
         {% if detail.status.value == "completed" %}
           {% set fa = detail.attribute_validations | rejectattr("passed") | list | length %}
           {% if fa > 0 %}
@@ -199,7 +199,7 @@
         {% endif %}
       </button>
       <button class="tab-btn" data-tab="citations">
-        &#128209; Citations
+        Citations
         {% if detail.citation_validations %}
           {% set fc = detail.citation_validations | selectattr("flagged_immediate_review") | list | length %}
           {% if fc > 0 %}
@@ -207,7 +207,7 @@
           {% endif %}
         {% endif %}
       </button>
-      <button class="tab-btn" data-tab="extractions">&#9998; Edit Extractions</button>
+      <button class="tab-btn" data-tab="extractions">Edit Extractions</button>
     </div>
 
     {# ══ TAB: ATTRIBUTE REVIEW ══════════════════════════════ #}
@@ -234,14 +234,20 @@
             {# Certificate side #}
             <div class="attr-doc">
               <div class="attr-doc-label">
-                <span class="cert-icon">&#9632;</span> Certificate
+                Certificate
                 {% if ag.cert %}
                   <span style="margin-left:auto">{{ conf_bar(ag.cert.confidence) }}</span>
                 {% endif %}
               </div>
               <div class="attr-value">
                 {% if ag.cert %}
-                  {{ render_value(ag.cert.value_json) }}
+                  {% if ag.num == 2 %}
+                  <div class="attr-value--citation-scroll" role="region" aria-label="Certificate citations">
+                    {{ render_value(ag.cert.value_json, true) }}
+                  </div>
+                  {% else %}
+                  {{ render_value(ag.cert.value_json, false) }}
+                  {% endif %}
                   {% if ag.cert.justification %}
                   <div class="muted small" style="margin-top:0.4rem;font-style:italic;">{{ ag.cert.justification }}</div>
                   {% endif %}
@@ -254,14 +260,20 @@
             {# Test Report side #}
             <div class="attr-doc">
               <div class="attr-doc-label">
-                <span class="test-icon">&#9632;</span> Test Report
+                Test Report
                 {% if ag.test %}
                   <span style="margin-left:auto">{{ conf_bar(ag.test.confidence) }}</span>
                 {% endif %}
               </div>
               <div class="attr-value">
                 {% if ag.test %}
-                  {{ render_value(ag.test.value_json) }}
+                  {% if ag.num == 2 %}
+                  <div class="attr-value--citation-scroll" role="region" aria-label="Test report citations">
+                    {{ render_value(ag.test.value_json, true) }}
+                  </div>
+                  {% else %}
+                  {{ render_value(ag.test.value_json, false) }}
+                  {% endif %}
                   {% if ag.test.justification %}
                   <div class="muted small" style="margin-top:0.4rem;font-style:italic;">{{ ag.test.justification }}</div>
                   {% endif %}
@@ -361,7 +373,7 @@
                 </td>
                 <td>
                   {% if c.flagged_immediate_review %}
-                    <span class="cite-flagged">&#9888; Flagged</span>
+                    <span class="cite-flagged"><strong>!</strong> Flagged</span>
                   {% else %}
                     <span class="muted">—</span>
                   {% endif %}
@@ -386,7 +398,7 @@
         Conformant — all results conform;
         CPSC Index — citation found in CPSC requirement list;
         Lab Accred. — lab is accredited for this citation;
-        &#9888; Flagged — immediate manual review required.
+        Flagged — immediate manual review required.
       </div>
       {% else %}
       <div style="text-align:center;padding:2rem;color:var(--text-dim);">

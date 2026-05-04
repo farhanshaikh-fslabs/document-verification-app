@@ -121,6 +121,14 @@ h3 { font-size: 0.95rem; font-weight: 600; color: var(--text-dim); text-transfor
   margin-left: 0.5rem;
 }
 
+.user-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
 /* ============================================================
    Main layout
    ============================================================ */
@@ -453,10 +461,12 @@ button, .btn {
 .attr-compare {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  min-width: 0;
 }
 
 .attr-doc {
   padding: 0.85rem 1rem;
+  min-width: 0;
 }
 
 .attr-doc:first-child {
@@ -475,8 +485,59 @@ button, .btn {
   gap: 0.35rem;
 }
 
-.attr-doc-label .cert-icon { color: var(--accent); }
-.attr-doc-label .test-icon { color: #a78bfa; }
+/* Horizontal scroll for long citation lists — parent grid must use min-width:0 */
+.attr-value--citation-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  min-width: 0;
+  padding-bottom: 0.25rem;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
+}
+
+.kv-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.kv-pills--nowrap {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  width: max-content;
+  max-width: none;
+}
+
+.pill-citation {
+  font-size: 0.77rem;
+  text-transform: none;
+  letter-spacing: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
+  max-width: none;
+}
+
+.rating-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: rgba(234, 179, 8, 0.2);
+  border: 1px solid var(--yellow-border);
+  color: var(--yellow);
+}
+
+.msg-prefix {
+  margin-right: 0.35rem;
+  color: inherit;
+}
 
 .attr-value {
   font-size: 0.88rem;
@@ -612,7 +673,20 @@ textarea.wide {
 
 .doc-list li a:hover { background: var(--card2); }
 
-.doc-icon { color: var(--text-dim); font-size: 0.85rem; }
+.doc-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  background: var(--bg2);
+  border: 1px solid var(--border-light);
+}
 
 /* ============================================================
    Upload form
@@ -637,7 +711,14 @@ textarea.wide {
   display: none;
 }
 
-.upload-icon { font-size: 1.8rem; margin-bottom: 0.35rem; }
+.upload-icon {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 0.35rem;
+}
 .upload-hint { font-size: 0.8rem; color: var(--text-dim); margin-top: 0.25rem; }
 .upload-filename { color: var(--accent); font-size: 0.85rem; margin-top: 0.4rem; font-weight: 500; }
 
