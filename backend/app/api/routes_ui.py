@@ -2,7 +2,8 @@
 
 import json
 import asyncio
-from typing import Annotated
+from pathlib import Path
+from typing import Annotated, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -25,11 +26,123 @@ from app.db.models import (
     User,
 )
 from app.api.routes_submissions import _document_set_to_detail, run_pipeline_job
+from app.schemas.submission import SubmissionDetail
 from app.services.audit import log_audit
 from app.services.storage import save_upload
 
-templates = Jinja2Templates(directory="app/templates")
+_templates_dir = Path(__file__).resolve().parent.parent / "templates"
+templates = Jinja2Templates(directory=str(_templates_dir))
 router = APIRouter(tags=["ui"])
+
+# --- Attribute group definitions (9 attributes per CPSC requirements) ---
+_ATTR_GROUPS: list[dict[str, Any]] = [
+    {
+        "num": 1,
+        "name": "Product Identification",
+        "description": "Product name, description, and identification/model numbers",
+        "required_note": "Must match exactly on both documents and be present",
+        "cert_key": "certificate.product_identification",
+        "test_key": "test_report.product_identification",
+        "val_key_prefix": "pair.product_identification",
+        "match_required": True,
+    },
+    {
+        "num": 2,
+        "name": "Citation to Applicable Safety Rules",
+        "description": "Exact regulations/standards the product is certified to (e.g. 16 CFR 1610)",
+        "required_note": "Must be present and match both documents; non-compliant if any citation is missing",
+        "cert_key": "certificate.citations",
+        "test_key": "test_report.citations",
+        "val_key_prefix": "pair.citations",
+        "match_required": True,
+    },
+    {
+        "num": 3,
+        "name": "Manufacturer or Importer Information",
+        "description": "Company name and full address of the party legally responsible for compliance",
+        "required_note": "Must be present on both documents (not required to match)",
+        "cert_key": "certificate.manufacturer_importer",
+        "test_key": "test_report.manufacturer_importer",
+        "val_key_prefix": "pair.manufacturer_importer",
+        "match_required": False,
+    },
+    {
+        "num": 4,
+        "name": "Contact Information for Record Keeper",
+        "description": "Name, full mailing address, email, and telephone of the record keeper",
+        "required_note": "Required on certificate; if present on test report, all fields must match exactly",
+        "cert_key": "certificate.record_keeper_contact",
+        "test_key": "test_report.record_keeper_contact",
+        "val_key_prefix": "pair.record_keeper",
+        "match_required": None,
+    },
+    {
+        "num": 5,
+        "name": "Place of Manufacture",
+        "description": "Country and city or factory name where product was manufactured",
+        "required_note": "Must match both documents and be present",
+        "cert_key": "certificate.place_of_manufacture",
+        "test_key": "test_report.place_of_manufacture",
+        "val_key_prefix": "pair.place_of_manufacture",
+        "match_required": True,
+    },
+    {
+        "num": 6,
+        "name": "Date of Manufacture",
+        "description": "Month/Year or date range of manufacture",
+        "required_note": "Optional; if provided in either document it must match",
+        "cert_key": "certificate.date_of_manufacture",
+        "test_key": "test_report.date_of_manufacture",
+        "val_key_prefix": "pair.date_of_manufacture",
+        "match_required": None,
+    },
+    {
+        "num": 7,
+        "name": "Place of Testing",
+        "description": "Laboratory name with full city/state address where testing was performed",
+        "required_note": "Must match both documents and be present",
+        "cert_key": "certificate.place_of_testing",
+        "test_key": "test_report.place_of_testing",
+        "val_key_prefix": "pair.place_of_testing",
+        "match_required": True,
+    },
+    {
+        "num": 8,
+        "name": "Date of Testing",
+        "description": "Day/Month/Year the product was tested (date ranges acceptable)",
+        "required_note": "Must match both documents and be present",
+        "cert_key": "certificate.date_of_testing",
+        "test_key": "test_report.date_of_testing",
+        "val_key_prefix": "pair.date_of_testing",
+        "match_required": True,
+    },
+    {
+        "num": 9,
+        "name": "Third-Party Laboratory Information",
+        "description": "Laboratory name, full address, and CPSC accreditation number",
+        "required_note": "CPC: all fields must be exact match and present; GCC: optional but must match if provided",
+        "cert_key": "certificate.third_party_lab",
+        "test_key": "test_report.third_party_lab",
+        "val_key_prefix": "pair.third_party_lab",
+        "match_required": None,
+    },
+]
+
+
+def _build_attribute_groups(detail: SubmissionDetail) -> list[dict[str, Any]]:
+    ext_map = {e.attribute_key: e for e in detail.extractions}
+    val_map = {v.attribute_key: v for v in detail.attribute_validations}
+
+    groups: list[dict[str, Any]] = []
+    for ag in _ATTR_GROUPS:
+        cert_ext = ext_map.get(ag["cert_key"])
+        test_ext = ext_map.get(ag["test_key"])
+        val = next(
+            (v for k, v in val_map.items() if k.startswith(ag["val_key_prefix"])),
+            None,
+        )
+        groups.append({**ag, "cert": cert_ext, "test": test_ext, "validation": val})
+    return groups
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -215,6 +328,7 @@ async def review_detail(
     if not ds:
         return templates.TemplateResponse(request, "404.html", {"request": request, "user": u}, status_code=404)
     detail = _document_set_to_detail(ds)
+    attribute_groups = _build_attribute_groups(detail)
     await log_audit(
         db,
         user_id=u.id,
@@ -226,7 +340,13 @@ async def review_detail(
     return templates.TemplateResponse(
         request,
         "detail.html",
-        {"request": request, "user": u, "detail": detail, "started": bool(started)},
+        {
+            "request": request,
+            "user": u,
+            "detail": detail,
+            "started": bool(started),
+            "attribute_groups": attribute_groups,
+        },
     )
 
 

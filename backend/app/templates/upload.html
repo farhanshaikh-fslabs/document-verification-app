@@ -1,20 +1,109 @@
 {% extends "base.html" %}
-{% block title %}New submission — GCC/CPC POC{% endblock %}
+{% block title %}New Submission — GCC/CPC Compliance Review{% endblock %}
 {% block content %}
-<div class="card">
-  <h1>New compliance submission</h1>
-  <p class="muted">Upload certificate and test report PDFs. Processing starts immediately after upload.</p>
-  <form method="post" action="/review/new" enctype="multipart/form-data">
-    <label>Title (optional)<input type="text" name="title" /></label>
-    <label>Certificate type
-      <select name="certificate_kind">
-        <option value="cpc">CPC (strict third-party lab match)</option>
-        <option value="gcc">GCC (lab optional if present)</option>
-      </select>
-    </label>
-    <label>GCC/CPC PDF<input type="file" name="certificate" accept=".pdf" required /></label>
-    <label>Test report PDF<input type="file" name="test_report" accept=".pdf" required /></label>
-    <button type="submit">Upload &amp; process</button>
-  </form>
+<div style="max-width:640px;margin:0 auto;">
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <h1>New Compliance Submission</h1>
+        <p class="muted small">Upload a GCC/CPC certificate and test report for automated processing.</p>
+      </div>
+    </div>
+
+    <div class="info-box info">
+      <strong>Processing pipeline:</strong> Documents are extracted, validated against 9 CPSC compliance attributes,
+      and rated Green / Yellow / Red. This happens in the background — you'll see live status on the submission page.
+    </div>
+
+    <form method="post" action="/review/new" enctype="multipart/form-data" id="upload-form">
+      <label>
+        <span class="label-text">Submission title <span class="muted">(optional)</span></span>
+        <input type="text" name="title" placeholder="e.g. SliderBox Card Games Q1 2025" />
+      </label>
+
+      <label style="margin-top:1rem;">
+        <span class="label-text">Certificate type</span>
+        <select name="certificate_kind">
+          <option value="cpc">CPC — Children's Product Certificate (strict third-party lab required)</option>
+          <option value="gcc">GCC — General Certificate of Conformity (lab optional if present)</option>
+        </select>
+      </label>
+
+      <label style="margin-top:1rem;">
+        <span class="label-text">GCC/CPC Certificate PDF</span>
+        <div class="upload-area" id="cert-area" onclick="document.getElementById('cert-input').click()">
+          <input type="file" name="certificate" id="cert-input" accept=".pdf" required />
+          <div class="upload-icon">&#128196;</div>
+          <div>Click to select certificate PDF</div>
+          <div class="upload-hint">PDF format only · Max 50 MB</div>
+          <div class="upload-filename" id="cert-name" style="display:none"></div>
+        </div>
+      </label>
+
+      <label style="margin-top:1rem;">
+        <span class="label-text">Test Report PDF</span>
+        <div class="upload-area" id="report-area" onclick="document.getElementById('report-input').click()">
+          <input type="file" name="test_report" id="report-input" accept=".pdf" required />
+          <div class="upload-icon">&#128203;</div>
+          <div>Click to select test report PDF</div>
+          <div class="upload-hint">PDF format only · Max 50 MB</div>
+          <div class="upload-filename" id="report-name" style="display:none"></div>
+        </div>
+      </label>
+
+      <div style="display:flex;gap:0.75rem;margin-top:1.25rem;align-items:center;">
+        <button type="submit" class="btn btn-primary" id="submit-btn">
+          Upload &amp; Process
+        </button>
+        <a href="/review" class="btn btn-ghost">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="section">
+    <h3>What gets extracted &amp; validated?</h3>
+    <div style="margin-top:0.75rem;display:grid;gap:0.4rem;">
+      {% for item in [
+        ("1", "Product Identification", "Name, description, model numbers"),
+        ("2", "Citations to Safety Rules", "16 CFR standards, ASTM references"),
+        ("3", "Manufacturer / Importer", "Company name and full address"),
+        ("4", "Record Keeper Contact", "Name, address, email, telephone"),
+        ("5", "Place of Manufacture", "Country and city or factory name"),
+        ("6", "Date of Manufacture", "Month/Year or date range"),
+        ("7", "Place of Testing", "Laboratory name and full address"),
+        ("8", "Date of Testing", "Day/Month/Year or date range"),
+        ("9", "Third-Party Laboratory", "Lab name, address, CPSC accreditation number"),
+      ] %}
+      <div style="display:flex;align-items:baseline;gap:0.5rem;font-size:0.85rem;">
+        <span class="attr-num" style="flex-shrink:0;">{{ item[0] }}</span>
+        <strong>{{ item[1] }}</strong>
+        <span class="muted">— {{ item[2] }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
 </div>
+
+<script>
+function setFileName(inputId, nameId, areaId) {
+  const input = document.getElementById(inputId);
+  const name  = document.getElementById(nameId);
+  const area  = document.getElementById(areaId);
+  input.addEventListener('change', function() {
+    if (this.files[0]) {
+      name.textContent = this.files[0].name;
+      name.style.display = 'block';
+      area.style.borderColor = 'var(--accent)';
+    }
+  });
+}
+setFileName('cert-input', 'cert-name', 'cert-area');
+setFileName('report-input', 'report-name', 'report-area');
+
+document.getElementById('upload-form').addEventListener('submit', function() {
+  const btn = document.getElementById('submit-btn');
+  btn.textContent = 'Uploading…';
+  btn.disabled = true;
+});
+</script>
 {% endblock %}

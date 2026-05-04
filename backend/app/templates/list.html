@@ -1,44 +1,104 @@
 {% extends "base.html" %}
-{% block title %}Submissions — GCC/CPC POC{% endblock %}
+{% block title %}Submissions — GCC/CPC Compliance Review{% endblock %}
 {% block content %}
-<section class="section review-shell">
-  <div class="section-head">
-    <h1>Processed submissions</h1>
-    <a class="btn-link" href="/review/new">New upload</a>
+<div class="section list-shell">
+  <div class="section-header">
+    <div>
+      <h1>Compliance Submissions</h1>
+      <p class="muted small">Review and manage GCC/CPC compliance documents</p>
+    </div>
+    <a href="/review/new" class="btn btn-primary">
+      <span>+</span> New Submission
+    </a>
   </div>
-  <form method="get" action="/review" class="search">
-    <input type="search" name="q" value="{{ q }}" placeholder="Search title..." />
-    <button type="submit">Search</button>
+
+  <form method="get" action="/review" class="search-bar">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search by title..." />
+    <button type="submit" class="btn btn-ghost">Search</button>
+    {% if q %}<a href="/review" class="btn btn-ghost">Clear</a>{% endif %}
   </form>
+
+  {% if items %}
   <div class="table-wrap">
     <table class="table">
       <thead>
         <tr>
           <th>Title</th>
+          <th>Kind</th>
           <th>Status</th>
           <th>Rating</th>
-          <th>Manual review</th>
+          <th>Manual Review</th>
+          <th>Submitted</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         {% for it in items %}
-        <tr>
-          <td>{{ it.title or "(no title)" }}</td>
-          <td>{{ it.status.value }}</td>
+        <tr class="{% if it.manual_review_required and it.status.value == 'completed' %}flagged{% endif %}">
+          <td>
+            <a href="/review/{{ it.id }}" style="color:var(--text);text-decoration:none;font-weight:500;">
+              {{ it.title or "(untitled)" }}
+            </a>
+            {% if it.failure_message %}
+            <div class="small error" style="margin-top:0.2rem">&#9888; {{ it.failure_message[:80] }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <span class="pill pill-blue">{{ it.certificate_kind.value | upper }}</span>
+          </td>
+          <td>
+            {% if it.status.value == "completed" %}
+              <span class="pill pill-green"><span class="status-dot dot-green"></span> Completed</span>
+            {% elif it.status.value == "failed" %}
+              <span class="pill pill-red"><span class="status-dot dot-red"></span> Failed</span>
+            {% elif it.status.value in ["extracting", "validating"] %}
+              <span class="pill pill-yellow"><span class="status-dot dot-yellow"></span> {{ it.status.value | capitalize }}</span>
+            {% else %}
+              <span class="pill pill-gray">{{ it.status.value | capitalize }}</span>
+            {% endif %}
+          </td>
           <td>
             {% if it.traffic_light %}
-            <span class="pill pill-{{ it.traffic_light.value }}">{{ it.traffic_light.value }}</span>
+              <span class="pill pill-{{ it.traffic_light.value }}">
+                <span class="status-dot dot-{{ it.traffic_light.value }}"></span>
+                {{ it.traffic_light.value | upper }}
+              </span>
+            {% else %}
+              <span class="muted small">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if it.manual_review_required %}
+              <span style="color:var(--yellow);font-weight:600;font-size:0.85rem;">&#9888; Required</span>
+            {% else %}
+              <span class="muted small">No</span>
+            {% endif %}
+          </td>
+          <td class="muted small" style="white-space:nowrap">
+            {% if it.created_at %}
+              {{ it.created_at.strftime("%d %b %Y") }}
+              <div class="muted" style="font-size:0.75rem">{{ it.created_at.strftime("%H:%M") }}</div>
             {% else %}—{% endif %}
           </td>
-          <td>{% if it.manual_review_required %}Yes{% else %}No{% endif %}</td>
-          <td><a href="/review/{{ it.id }}">Open</a></td>
+          <td>
+            <a href="/review/{{ it.id }}" class="btn-link btn-sm">View &#8594;</a>
+          </td>
         </tr>
-        {% else %}
-        <tr><td colspan="5">No submissions yet. <a href="/review/new">Upload documents</a>.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-</section>
+  <div class="muted small" style="margin-top:0.6rem;text-align:right">
+    {{ items | length }} submission{% if items | length != 1 %}s{% endif %}
+    {% if q %} matching "{{ q }}"{% endif %}
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)">
+    <div style="font-size:2.5rem;margin-bottom:0.75rem">&#128196;</div>
+    <p style="font-size:1rem;font-weight:500;color:var(--text);">No submissions yet</p>
+    <p class="small" style="margin:0.35rem 0 1.25rem">Upload a GCC/CPC certificate and test report to get started.</p>
+    <a href="/review/new" class="btn btn-primary">Upload your first submission</a>
+  </div>
+  {% endif %}
+</div>
 {% endblock %}

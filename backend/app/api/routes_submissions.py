@@ -146,6 +146,8 @@ def _document_set_to_detail(ds: DocumentSet) -> SubmissionDetail:
         traffic_light_reasons=ds.traffic_light_reasons,
         manual_review_required=ds.manual_review_required,
         failure_message=ds.failure_message,
+        created_at=ds.created_at,
+        updated_at=ds.updated_at,
         documents=[DocumentOut.model_validate(d) for d in ds.documents],
         extractions=[ExtractionOut.model_validate(e) for e in ds.extractions],
         attribute_validations=[AttributeValidationOut.model_validate(v) for v in ds.attribute_validations],

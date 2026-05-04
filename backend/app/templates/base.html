@@ -3,18 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}GCC/CPC POC{% endblock %}</title>
+  <title>{% block title %}GCC/CPC Compliance Review{% endblock %}</title>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
   <header class="header">
-    <a href="/review" class="brand">GCC/CPC Compliance POC</a>
+    <a href="/review" class="brand">
+      <div class="brand-icon">GC</div>
+      <span class="brand-text"><span>GCC/CPC</span> Compliance Review</span>
+    </a>
     {% if user %}
     <nav class="topnav">
-      <a href="/review">Submissions</a>
-      <a href="/review/new">New upload</a>
-      <a href="/logout">Logout</a>
-      <span class="user">{{ user.email }}</span>
+      <a href="/review" {% if request.url.path == "/review" %}class="active"{% endif %}>Submissions</a>
+      <a href="/review/new" {% if request.url.path == "/review/new" %}class="active"{% endif %}>New Upload</a>
+      <span class="meta-sep">|</span>
+      <div class="user-chip">
+        <span>&#9679;</span>
+        {{ user.email }}
+      </div>
+      <a href="/logout" class="btn btn-ghost btn-sm" style="margin-left:0.25rem">Logout</a>
     </nav>
     {% endif %}
   </header>

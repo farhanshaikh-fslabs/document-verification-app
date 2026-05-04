@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field, field_validator
 
 from app.db.models import CertificateKind, ProcessingStatus, TrafficLight
@@ -63,6 +65,8 @@ class SubmissionDetail(BaseModel):
     traffic_light_reasons: list | None
     manual_review_required: bool
     failure_message: str | None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     documents: list[DocumentOut]
     extractions: list[ExtractionOut]
     attribute_validations: list[AttributeValidationOut]

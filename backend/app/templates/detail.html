@@ -1,116 +1,482 @@
 {% extends "base.html" %}
-{% block title %}Submission — GCC/CPC POC{% endblock %}
+{% block title %}{{ detail.title or "Submission" }} — GCC/CPC Compliance Review{% endblock %}
 {% block content %}
+
+{# ── helper macros ─────────────────────────────────────────── #}
+{% macro conf_bar(score) %}
+{% set pct = (score * 100) | int %}
+{% if score >= 0.75 %}{% set cls = "high" %}
+{% elif score >= 0.5 %}{% set cls = "med" %}
+{% else %}{% set cls = "low" %}{% endif %}
+<div class="conf-bar-wrap">
+  <div class="conf-bar-track"><div class="conf-bar-fill {{ cls }}" style="width:{{ pct }}%"></div></div>
+  <span class="conf-val">{{ "%.0f"|format(pct) }}%</span>
+</div>
+{% endmacro %}
+
+{% macro render_value(val) %}
+{% if val is none or val == "" %}
+  <span class="kv-val missing">Not extracted</span>
+{% elif val is mapping %}
+  <div>
+  {% for k, v in val.items() %}
+    <div class="kv-row">
+      <span class="kv-key">{{ k | replace("_", " ") | title }}:</span>
+      <span class="kv-val {% if not v %}missing{% endif %}">{{ v if v else "—" }}</span>
+    </div>
+  {% endfor %}
+  </div>
+{% elif val is iterable and val is not string %}
+  {% if val | list | length == 0 %}
+    <span class="kv-val missing">None found</span>
+  {% else %}
+    <div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
+    {% for item in val %}
+      <code class="pill pill-gray" style="font-size:0.77rem;text-transform:none;letter-spacing:0;">{{ item }}</code>
+    {% endfor %}
+    </div>
+  {% endif %}
+{% else %}
+  <span class="kv-val">{{ val }}</span>
+{% endif %}
+{% endmacro %}
+
+{# ── page layout ──────────────────────────────────────────── #}
 <div class="detail-layout">
-  <aside class="sidebar section">
-    <h1>{{ detail.title or "Submission" }}</h1>
-    <p class="muted small">ID: {{ detail.id }}</p>
-    <p class="muted">Kind: <strong>{{ detail.certificate_kind.value }}</strong> · Status: <strong>{{ detail.status.value }}</strong></p>
-    {% if started %}
-    <p class="muted small">Processing started for this upload. This page auto-refreshes until completion.</p>
-    {% endif %}
-    {% if detail.failure_message %}
-    <p class="error">{{ detail.failure_message }}</p>
-    {% endif %}
+
+  {# ── SIDEBAR ─────────────────────────────────────────────── #}
+  <aside class="detail-sidebar">
+
+    {# Rating banner #}
     {% if detail.traffic_light %}
-    <p class="rating-line">Rating <span class="pill pill-{{ detail.traffic_light.value }}">{{ detail.traffic_light.value }}</span></p>
-    {% if detail.traffic_light_reasons %}
-    <ul class="compact-list muted small">
-      {% for reason in detail.traffic_light_reasons %}
-      <li>{{ reason }}</li>
-      {% endfor %}
-    </ul>
-    {% endif %}
+    {% set tl = detail.traffic_light.value %}
+    <div class="rating-banner {{ tl }}">
+      <div class="rating-icon">
+        {% if tl == "green" %}&#9989;
+        {% elif tl == "yellow" %}&#9888;
+        {% else %}&#10060;{% endif %}
+      </div>
+      <div>
+        <div class="rating-label">{{ tl | upper }} — {% if tl == "green" %}Compliant{% elif tl == "yellow" %}Review Required{% else %}Non-Compliant{% endif %}</div>
+        {% if detail.traffic_light_reasons %}
+        <ul class="compact-list" style="margin-top:0.3rem">
+          {% for r in detail.traffic_light_reasons %}
+          <li>{{ r }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+    </div>
     {% endif %}
 
-    <div class="inline-actions">
-      <form method="post" action="/review/{{ detail.id }}/reprocess">
-        <button type="submit">Re-run extraction &amp; validation</button>
-      </form>
+    {# Status + meta #}
+    <div class="section" style="padding:0.85rem 1rem;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">
+        <h2 style="font-size:1rem;">{{ detail.title or "(untitled)" }}</h2>
+        <span class="pill pill-blue">{{ detail.certificate_kind.value | upper }}</span>
+      </div>
+      <div class="meta-row">
+        {% if detail.status.value == "completed" %}
+          <span class="pill pill-green" style="font-size:0.72rem;"><span class="status-dot dot-green"></span>Completed</span>
+        {% elif detail.status.value == "failed" %}
+          <span class="pill pill-red" style="font-size:0.72rem;"><span class="status-dot dot-red"></span>Failed</span>
+        {% else %}
+          <span class="pill pill-yellow" style="font-size:0.72rem;"><span class="status-dot dot-yellow"></span>{{ detail.status.value | capitalize }}</span>
+        {% endif %}
+        {% if detail.created_at %}
+        <span class="meta-sep">·</span>
+        <span>{{ detail.created_at.strftime("%d %b %Y %H:%M") }}</span>
+        {% endif %}
+      </div>
+      {% if detail.failure_message %}
+      <div class="info-box err">&#9888; {{ detail.failure_message }}</div>
+      {% endif %}
+      {% if detail.manual_review_required and detail.status.value == "completed" %}
+      <div class="info-box warn">&#9888; Manual review required for this submission.</div>
+      {% endif %}
+      <div class="muted small" style="margin-top:0.4rem">ID: {{ detail.id }}</div>
     </div>
 
-    <h3>Original documents</h3>
-    <ul class="compact-list">
-      {% for d in detail.documents %}
-      <li><a href="/api/documents/{{ d.id }}/file" target="_blank">{{ d.doc_type }} — {{ d.original_filename }}</a></li>
-      {% endfor %}
-    </ul>
-  </aside>
+    {# Documents #}
+    <div class="section" style="padding:0.85rem 1rem;">
+      <h3 style="margin-bottom:0.6rem;">Original Documents</h3>
+      <ul class="doc-list">
+        {% for d in detail.documents %}
+        <li>
+          <a href="/api/documents/{{ d.id }}/file" target="_blank">
+            <span class="doc-icon">&#128196;</span>
+            <span>
+              <div style="color:var(--text);font-weight:500;font-size:0.83rem;">
+                {{ "Certificate" if d.doc_type == "certificate" else "Test Report" }}
+              </div>
+              <div class="muted" style="font-size:0.75rem;">{{ d.original_filename }}</div>
+            </span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
 
-  <div class="content-stack">
-    <section class="section">
-      <h2>Manual rating override</h2>
-      <form method="post" action="/review/{{ detail.id }}/rating" class="row">
-        <select name="traffic_light">
-          <option value="green">green</option>
-          <option value="yellow">yellow</option>
-          <option value="red">red</option>
-        </select>
-        <input type="text" name="reason" placeholder="Reason (required)" required />
-        <button type="submit">Save rating</button>
+    {# Actions #}
+    <div class="section" style="padding:0.85rem 1rem;">
+      <h3 style="margin-bottom:0.6rem;">Actions</h3>
+
+      <form method="post" action="/review/{{ detail.id }}/reprocess" style="margin-bottom:0.75rem;">
+        <button type="submit" class="btn btn-ghost btn-sm" style="width:100%;">
+          &#8635; Re-run Extraction &amp; Validation
+        </button>
       </form>
-    </section>
 
-    <section class="section">
-      <h2>Attribute validations</h2>
-      <div class="table-wrap compact-height">
-        <table class="table">
-          <thead><tr><th>Key</th><th>Passed</th><th>Reason</th></tr></thead>
-          <tbody>
-            {% for v in detail.attribute_validations %}
-            <tr>
-              <td><code>{{ v.attribute_key }}</code></td>
-              <td>{% if v.passed %}Yes{% else %}<strong>No</strong>{% endif %}</td>
-              <td>{{ v.reason or "—" }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2>Citation validations</h2>
-      <div class="table-wrap compact-height">
-        <table class="table">
-          <thead><tr><th>Citation</th><th>Cert</th><th>Report</th><th>Pass/Fail</th><th>Flagged</th></tr></thead>
-          <tbody>
-            {% for c in detail.citation_validations %}
-            <tr>
-              <td><code>{{ c.citation_normalized }}</code></td>
-              <td>{{ "Y" if c.on_certificate else "N" }}</td>
-              <td>{{ "Y" if c.on_test_report else "N" }}</td>
-              <td>{{ c.test_pass_fail or "—" }}</td>
-              <td>{% if c.flagged_immediate_review %}<strong>Yes</strong>{% else %}No{% endif %}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2>Extractions (expand to edit JSON value)</h2>
-      {% for e in detail.extractions %}
-      <details class="accordion extraction-block" {% if loop.first %}open{% endif %}>
-        <summary>
-          <code>{{ e.attribute_key }}</code>
-          <span class="muted small">confidence {{ "%.2f"|format(e.confidence) }}{% if e.user_edited %} · edited{% endif %}</span>
+      <details>
+        <summary style="cursor:pointer;font-size:0.85rem;color:var(--text-dim);list-style:none;display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;">
+          <span>Override Rating</span><span>&#9660;</span>
         </summary>
-        {% if e.justification %}<p class="muted small">{{ e.justification }}</p>{% endif %}
-        {% if e.raw_text_snippet %}<pre class="snippet">{{ e.raw_text_snippet }}</pre>{% endif %}
-        <form method="post" action="/review/{{ detail.id }}/extractions/{{ e.id }}">
-          <textarea name="value_json" rows="6" class="wide">{% if e.value_json is none %}{% else %}{{ e.value_json | tojson(indent=2) }}{% endif %}</textarea>
-          <button type="submit">Save extraction</button>
+        <form method="post" action="/review/{{ detail.id }}/rating" style="margin-top:0.6rem;">
+          <select name="traffic_light" style="margin-bottom:0.4rem;">
+            <option value="green">&#9989; Green — Compliant</option>
+            <option value="yellow">&#9888; Yellow — Review Required</option>
+            <option value="red">&#10060; Red — Non-Compliant</option>
+          </select>
+          <input type="text" name="reason" placeholder="Reason for override (required)" required />
+          <button type="submit" class="btn btn-primary btn-sm" style="margin-top:0.5rem;width:100%;">Save Override</button>
         </form>
       </details>
+    </div>
+
+    {# Summary counts (only when completed) #}
+    {% if detail.status.value == "completed" %}
+    <div class="section" style="padding:0.85rem 1rem;">
+      <h3 style="margin-bottom:0.6rem;">Validation Summary</h3>
+      {% set pass_count = detail.attribute_validations | selectattr("passed") | list | length %}
+      {% set fail_count = detail.attribute_validations | rejectattr("passed") | list | length %}
+      {% set flag_count = detail.citation_validations | selectattr("flagged_immediate_review") | list | length %}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.4rem;text-align:center;">
+        <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:7px;padding:0.6rem 0.3rem;">
+          <div style="font-size:1.4rem;font-weight:700;color:var(--green);">{{ pass_count }}</div>
+          <div class="small muted">Passed</div>
+        </div>
+        <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:7px;padding:0.6rem 0.3rem;">
+          <div style="font-size:1.4rem;font-weight:700;color:var(--red);">{{ fail_count }}</div>
+          <div class="small muted">Failed</div>
+        </div>
+        <div style="background:var(--yellow-bg);border:1px solid var(--yellow-border);border-radius:7px;padding:0.6rem 0.3rem;">
+          <div style="font-size:1.4rem;font-weight:700;color:var(--yellow);">{{ flag_count }}</div>
+          <div class="small muted">Flagged</div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </aside>{# end sidebar #}
+
+  {# ── MAIN CONTENT ─────────────────────────────────────────── #}
+  <div class="detail-main">
+
+    {# processing notice #}
+    {% if detail.status.value in ["pending", "extracting", "validating"] %}
+    <div class="processing-notice">
+      <div class="spinner"></div>
+      <span>
+        <strong>{{ detail.status.value | capitalize }}…</strong>
+        Processing in background. This page refreshes automatically.
+      </span>
+    </div>
+    {% endif %}
+
+    {% if started and detail.status.value in ["pending", "extracting", "validating"] %}
+    <div class="info-box info">&#128640; Upload complete. Extraction and validation are running.</div>
+    {% endif %}
+
+    {# ── TABS ── #}
+    <div class="tabs" id="tab-nav">
+      <button class="tab-btn active" data-tab="attributes">
+        &#128203; Attribute Review
+        {% if detail.status.value == "completed" %}
+          {% set fa = detail.attribute_validations | rejectattr("passed") | list | length %}
+          {% if fa > 0 %}
+            <span class="pill pill-red" style="font-size:0.7rem;padding:0.1rem 0.4rem;">{{ fa }}</span>
+          {% endif %}
+        {% endif %}
+      </button>
+      <button class="tab-btn" data-tab="citations">
+        &#128209; Citations
+        {% if detail.citation_validations %}
+          {% set fc = detail.citation_validations | selectattr("flagged_immediate_review") | list | length %}
+          {% if fc > 0 %}
+            <span class="pill pill-red" style="font-size:0.7rem;padding:0.1rem 0.4rem;">{{ fc }}</span>
+          {% endif %}
+        {% endif %}
+      </button>
+      <button class="tab-btn" data-tab="extractions">&#9998; Edit Extractions</button>
+    </div>
+
+    {# ══ TAB: ATTRIBUTE REVIEW ══════════════════════════════ #}
+    <div class="tab-panel active" id="tab-attributes">
+      {% if attribute_groups %}
+      {% for ag in attribute_groups %}
+      <div class="attr-group">
+        <div class="attr-header">
+          <span class="attr-num">{{ ag.num }}</span>
+          <span class="attr-title">{{ ag.name }}</span>
+          {% if ag.validation %}
+            {% if ag.validation.passed %}
+              <span class="pill pill-green">&#10003; Pass</span>
+            {% else %}
+              <span class="pill pill-red">&#10007; Fail</span>
+            {% endif %}
+          {% elif detail.status.value == "completed" %}
+            <span class="pill pill-gray">No Result</span>
+          {% endif %}
+        </div>
+
+        <div class="attr-body">
+          <div class="attr-compare">
+            {# Certificate side #}
+            <div class="attr-doc">
+              <div class="attr-doc-label">
+                <span class="cert-icon">&#9632;</span> Certificate
+                {% if ag.cert %}
+                  <span style="margin-left:auto">{{ conf_bar(ag.cert.confidence) }}</span>
+                {% endif %}
+              </div>
+              <div class="attr-value">
+                {% if ag.cert %}
+                  {{ render_value(ag.cert.value_json) }}
+                  {% if ag.cert.justification %}
+                  <div class="muted small" style="margin-top:0.4rem;font-style:italic;">{{ ag.cert.justification }}</div>
+                  {% endif %}
+                {% else %}
+                  <span class="kv-val missing">Not yet extracted</span>
+                {% endif %}
+              </div>
+            </div>
+
+            {# Test Report side #}
+            <div class="attr-doc">
+              <div class="attr-doc-label">
+                <span class="test-icon">&#9632;</span> Test Report
+                {% if ag.test %}
+                  <span style="margin-left:auto">{{ conf_bar(ag.test.confidence) }}</span>
+                {% endif %}
+              </div>
+              <div class="attr-value">
+                {% if ag.test %}
+                  {{ render_value(ag.test.value_json) }}
+                  {% if ag.test.justification %}
+                  <div class="muted small" style="margin-top:0.4rem;font-style:italic;">{{ ag.test.justification }}</div>
+                  {% endif %}
+                {% else %}
+                  <span class="kv-val missing">Not yet extracted</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>{# end attr-compare #}
+
+          <div class="attr-footer">
+            <div class="attr-validation-msg {% if ag.validation %}{% if ag.validation.passed %}pass{% else %}fail{% endif %}{% else %}none{% endif %}">
+              {% if ag.validation %}
+                {% if ag.validation.passed %}
+                  &#10003; Validation passed
+                {% else %}
+                  &#10007; {{ ag.validation.reason or "Validation failed" }}
+                {% endif %}
+              {% elif detail.status.value == "completed" %}
+                No validation result recorded
+              {% else %}
+                Pending validation
+              {% endif %}
+            </div>
+            <div style="font-size:0.78rem;color:var(--text-dim);">{{ ag.required_note }}</div>
+          </div>
+        </div>
+      </div>
       {% endfor %}
-    </section>
-  </div>
-</div>
+      {% else %}
+      <div style="text-align:center;padding:2rem;color:var(--text-dim);">
+        {% if detail.status.value in ["pending", "extracting", "validating"] %}
+        Processing… attribute groups will appear here when extraction is complete.
+        {% else %}
+        No extraction data available.
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>{# end tab-attributes #}
+
+    {# ══ TAB: CITATIONS ══════════════════════════════════════ #}
+    <div class="tab-panel" id="tab-citations">
+      {% if detail.citation_validations %}
+      <div class="section" style="padding:0;">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Citation</th>
+                <th>On Cert</th>
+                <th>On Report</th>
+                <th>Clause Match</th>
+                <th>PASS / FAIL</th>
+                <th>Conformant</th>
+                <th>CPSC Index</th>
+                <th>Lab Accred.</th>
+                <th>Flagged</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in detail.citation_validations %}
+              <tr class="{% if c.flagged_immediate_review %}flagged{% elif c.conformant %}pass{% endif %}">
+                <td><code class="mono">{{ c.citation_normalized }}</code></td>
+                <td>
+                  {% if c.on_certificate %}<span class="cite-pass">&#10003;</span>
+                  {% else %}<span class="cite-missing">&#10007;</span>{% endif %}
+                </td>
+                <td>
+                  {% if c.on_test_report %}<span class="cite-pass">&#10003;</span>
+                  {% else %}<span class="cite-missing">&#10007;</span>{% endif %}
+                </td>
+                <td>
+                  {% if c.clause_match is none %}<span class="muted">—</span>
+                  {% elif c.clause_match %}<span class="cite-pass">&#10003;</span>
+                  {% else %}<span class="cite-fail">&#10007;</span>{% endif %}
+                </td>
+                <td>
+                  {% if c.test_pass_fail == "PASS" %}<span class="pill pill-green" style="font-size:0.75rem;">PASS</span>
+                  {% elif c.test_pass_fail == "FAIL" %}<span class="pill pill-red" style="font-size:0.75rem;">FAIL</span>
+                  {% elif c.test_pass_fail == "MIXED" %}<span class="pill pill-yellow" style="font-size:0.75rem;">MIXED</span>
+                  {% else %}<span class="muted">—</span>{% endif %}
+                </td>
+                <td>
+                  {% if c.conformant is none %}<span class="muted">—</span>
+                  {% elif c.conformant %}<span class="pill pill-green" style="font-size:0.75rem;">Yes</span>
+                  {% else %}<span class="pill pill-red" style="font-size:0.75rem;">No</span>{% endif %}
+                </td>
+                <td>
+                  {% if c.cpsc_lookup_ok is none %}<span class="muted">—</span>
+                  {% elif c.cpsc_lookup_ok %}<span class="cite-pass">&#10003;</span>
+                  {% else %}<span class="cite-fail">&#10007;</span>{% endif %}
+                </td>
+                <td>
+                  {% if c.lab_accreditation_ok is none %}<span class="muted">—</span>
+                  {% elif c.lab_accreditation_ok %}<span class="cite-pass">&#10003;</span>
+                  {% else %}<span class="cite-fail">&#10007;</span>{% endif %}
+                </td>
+                <td>
+                  {% if c.flagged_immediate_review %}
+                    <span class="cite-flagged">&#9888; Flagged</span>
+                  {% else %}
+                    <span class="muted">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% if c.justification %}
+              <tr>
+                <td colspan="9" style="padding:0.3rem 0.75rem 0.6rem;color:var(--text-dim);font-size:0.8rem;font-style:italic;background:rgba(0,0,0,0.15);">
+                  {{ c.justification }}
+                </td>
+              </tr>
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="info-box info">
+        <strong>Legend:</strong>
+        PASS/FAIL — test result in report window;
+        Conformant — all results conform;
+        CPSC Index — citation found in CPSC requirement list;
+        Lab Accred. — lab is accredited for this citation;
+        &#9888; Flagged — immediate manual review required.
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:2rem;color:var(--text-dim);">
+        {% if detail.status.value in ["pending", "extracting", "validating"] %}
+        Processing… citation validations will appear here when complete.
+        {% else %}
+        No citation validations available.
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>{# end tab-citations #}
+
+    {# ══ TAB: EDIT EXTRACTIONS ════════════════════════════════ #}
+    <div class="tab-panel" id="tab-extractions">
+      <div class="info-box info" style="margin-bottom:1rem;">
+        Edit the JSON value for any extracted field below. All edits are logged for audit.
+        Changes here do <strong>not</strong> automatically re-run validation — use "Re-run" in the sidebar after editing.
+      </div>
+
+      {% if detail.extractions %}
+      {% for e in detail.extractions %}
+      <details class="accordion" {% if loop.index <= 2 %}open{% endif %}>
+        <summary>
+          <div style="display:flex;align-items:center;gap:0.6rem;flex:1;min-width:0;">
+            <code class="mono" style="font-size:0.8rem;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ e.attribute_key }}</code>
+            {% if e.user_edited %}<span class="pill pill-yellow" style="font-size:0.7rem;flex-shrink:0;">edited</span>{% endif %}
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+            {{ conf_bar(e.confidence) }}
+            {% if e.page_hint is not none %}
+            <span class="muted small">p.{{ e.page_hint + 1 }}</span>
+            {% endif %}
+          </div>
+        </summary>
+        <div class="accordion-body">
+          {% if e.justification %}
+          <div class="muted small" style="margin-bottom:0.5rem;font-style:italic;">{{ e.justification }}</div>
+          {% endif %}
+          {% if e.raw_text_snippet %}
+          <div class="small muted" style="margin-bottom:0.25rem;">Source text:</div>
+          <pre class="snippet">{{ e.raw_text_snippet }}</pre>
+          {% endif %}
+          <form method="post" action="/review/{{ detail.id }}/extractions/{{ e.id }}">
+            <label>
+              <span class="label-text">Value (JSON)</span>
+              <textarea name="value_json" rows="7" class="wide">{% if e.value_json is not none %}{{ e.value_json | tojson(indent=2) }}{% endif %}</textarea>
+            </label>
+            <button type="submit" class="btn btn-primary btn-sm" style="margin-top:0.5rem;">Save</button>
+          </form>
+        </div>
+      </details>
+      {% endfor %}
+      {% else %}
+      <div style="text-align:center;padding:2rem;color:var(--text-dim);">
+        No extractions yet. Process a submission to see extracted fields.
+      </div>
+      {% endif %}
+    </div>{# end tab-extractions #}
+
+  </div>{# end detail-main #}
+</div>{# end detail-layout #}
+
+{# Auto-refresh while processing #}
 {% if detail.status.value in ["pending", "extracting", "validating"] %}
-<script>
-  setTimeout(function () { window.location.reload(); }, 4000);
-</script>
+<script>setTimeout(function() { window.location.reload(); }, 5000);</script>
 {% endif %}
+
+{# Tab switching #}
+<script>
+(function() {
+  var btns   = document.querySelectorAll('.tab-btn');
+  var panels = document.querySelectorAll('.tab-panel');
+
+  btns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var target = this.dataset.tab;
+      btns.forEach(function(b) { b.classList.remove('active'); });
+      panels.forEach(function(p) { p.classList.remove('active'); });
+      this.classList.add('active');
+      var panel = document.getElementById('tab-' + target);
+      if (panel) panel.classList.add('active');
+    });
+  });
+
+  // If URL has #citations or #extractions, switch to that tab
+  var hash = window.location.hash.replace('#', '');
+  if (hash) {
+    var btn = document.querySelector('[data-tab="' + hash + '"]');
+    if (btn) btn.click();
+  }
+})();
+</script>
 {% endblock %}

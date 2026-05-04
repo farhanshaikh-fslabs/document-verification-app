@@ -1,17 +1,106 @@
 {
   "labs": [
     {
+      "normalized_name": "bureau veritas consumer products services",
+      "cpsc_accreditation_id": "BV-CPSC-1003",
+      "citations_supported": [
+        "16 CFR 1610", "16 CFR 1303", "16 CFR 1501", "16 CFR 1307",
+        "16 CFR 1615", "16 CFR 1616", "16 CFR 1120", "16 CFR 1500",
+        "ASTM F963", "16 CFR 1511", "16 CFR 1512"
+      ]
+    },
+    {
+      "normalized_name": "intertek testing services",
+      "cpsc_accreditation_id": "ITS-CPSC-2201",
+      "citations_supported": [
+        "16 CFR 1610", "16 CFR 1303", "16 CFR 1501", "16 CFR 1307",
+        "16 CFR 1615", "16 CFR 1616", "16 CFR 1500", "ASTM F963",
+        "16 CFR 1511", "16 CFR 1512", "16 CFR 1120", "16 CFR 1217",
+        "16 CFR 1219", "16 CFR 1220", "16 CFR 1221"
+      ]
+    },
+    {
+      "normalized_name": "sgs north america",
+      "cpsc_accreditation_id": "SGS-CPSC-0844",
+      "citations_supported": [
+        "16 CFR 1610", "16 CFR 1303", "16 CFR 1501", "16 CFR 1500",
+        "ASTM F963", "16 CFR 1511", "16 CFR 1512"
+      ]
+    },
+    {
+      "normalized_name": "ul llc",
+      "cpsc_accreditation_id": "UL-CPSC-0039",
+      "citations_supported": [
+        "16 CFR 1610", "16 CFR 1303", "16 CFR 1501", "16 CFR 1307",
+        "16 CFR 1615", "16 CFR 1616", "16 CFR 1120", "16 CFR 1500",
+        "ASTM F963", "16 CFR 1511", "16 CFR 1512", "16 CFR 1217",
+        "16 CFR 1219", "16 CFR 1220", "16 CFR 1221", "16 CFR 1222",
+        "16 CFR 1223", "16 CFR 1224", "16 CFR 1225", "16 CFR 1226"
+      ]
+    },
+    {
+      "normalized_name": "tuv rheinland",
+      "cpsc_accreditation_id": "TUV-CPSC-1177",
+      "citations_supported": [
+        "16 CFR 1610", "16 CFR 1303", "16 CFR 1501", "16 CFR 1500",
+        "ASTM F963", "16 CFR 1512"
+      ]
+    },
+    {
       "normalized_name": "example testing laboratory",
       "cpsc_accreditation_id": "EXAMPLE-1234",
-      "citations_supported": ["16 CFR 1610", "16 CFR 1303", "16 CFR 1501"]
+      "citations_supported": [
+        "16 CFR 1610", "16 CFR 1303", "16 CFR 1501"
+      ]
     }
   ],
   "cpsc_citation_index": [
-    "16 CFR 1610",
+    "16 CFR 1110",
+    "16 CFR 1120",
+    "16 CFR 1130",
+    "16 CFR 1205",
+    "16 CFR 1211",
+    "16 CFR 1213",
+    "16 CFR 1214",
+    "16 CFR 1215",
+    "16 CFR 1217",
+    "16 CFR 1219",
+    "16 CFR 1220",
+    "16 CFR 1221",
+    "16 CFR 1222",
+    "16 CFR 1223",
+    "16 CFR 1224",
+    "16 CFR 1225",
+    "16 CFR 1226",
     "16 CFR 1303",
-    "16 CFR 1501",
     "16 CFR 1307",
+    "16 CFR 1500",
+    "16 CFR 1501",
+    "16 CFR 1505",
+    "16 CFR 1506",
+    "16 CFR 1507",
+    "16 CFR 1508",
+    "16 CFR 1509",
+    "16 CFR 1511",
+    "16 CFR 1512",
+    "16 CFR 1513",
+    "16 CFR 1600",
+    "16 CFR 1610",
+    "16 CFR 1611",
     "16 CFR 1615",
-    "16 CFR 1616"
+    "16 CFR 1616",
+    "16 CFR 1700",
+    "16 CFR 1750",
+    "ASTM F963",
+    "ASTM F406",
+    "ASTM F1816",
+    "ASTM F2307",
+    "ASTM F2617",
+    "ASTM F2388",
+    "ASTM F1950",
+    "ASTM F2088",
+    "ASTM F355",
+    "ASTM F1292",
+    "ASTM F1487"
   ]
 }
